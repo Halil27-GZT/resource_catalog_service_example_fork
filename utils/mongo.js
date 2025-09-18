@@ -8,11 +8,16 @@ export function toObjectId(id) {
         err.status = 400;
         throw err;
     }
+    if (typeof id !== "string") {
+        const err = new Error("ObjectId muss ein String sein");
+        err.status = 400;
+        throw err;
+    }
     return new Types.ObjectId(id);
 }
 
 export function toClient(doc) {
     if (!doc) return doc;
-    const {_id, _v, ...rest} = doc;
+    const {_id, __v, ...rest} = doc;
     return {id: String(_id), ...rest};
 }
