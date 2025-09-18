@@ -277,15 +277,16 @@ router.put('/:id', async (req, res, next) => {
 
     const updated_resource = await Resource.findByIdAndUpdate(
       _id,
-      { ...newData, updatedAt: new Date() },
+      {...newData, updatedAt: new Date()},
       { new: true, lean: true }
     );
-
+    
     if (!updated_resource) {
       res.status(404).json({ error: `Ressource mit ID ${resourceId} nicht gefunden.` });
       return;
     }
-        const [avgDoc] = await Rating.aggregate([
+
+    const [avgDoc] = await Rating.aggregate([
       { $match: { resourceId: _id } },
       { $group: { _id: null, avg: { $avg: "ratingValue" } } }
     ]);
@@ -303,6 +304,42 @@ router.put('/:id', async (req, res, next) => {
     res.status(200).json(enriched_resource);
   } catch (error) {
     console.error(`Fehler beim Aktualisieren der Ressource mit ID ${req.params.id}:`, error);
+    next(error);
+  }
+});
+
+/**
+ * @route DELETE /:id
+ * @summary Löscht eine Ressource anhand ihrer ID.
+ * @description
+ * Entfernt eine Ressource permanent aus dem Katalog.
+ *
+ * @access Public
+ * @param {string} req.params.id - Die ID der zu löschenden Ressource.
+ * @returns {Object} 204 - Erfolgreich gelöscht (kein Inhalt).
+ * @returns {Object} 404 - Ressource nicht gefunden.
+ * @returns {Object} 500 - Interner Serverfehler.
+ */
+router.delete('/:id', async (req, res, next) => {
+  try {
+    const resourceId = req.params.id;
+    const _id = toObjectId(resourceId);
+
+    const deleted_resource = await Resource.findByIdAndDelete(_id);
+
+    if (!deleted_resource) {
+      res.status(404).json({ error: `Ressource mit ID ${resourceId} nicht gefunden.` });
+      return;
+    }
+    
+    await Promise.all([
+      Rating.deleteMany({ resourceId: _id }),
+      Feedback.deleteMany({ resourceId: _id })
+    ]);
+
+    res.status(204).end();
+  } catch (error) {
+    console.error(`Fehler beim Löschen der Ressource mit ID ${req.params.id}:`, error);
     next(error);
   }
 });
